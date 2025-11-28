@@ -854,7 +854,8 @@ def admin_login():
     
     return render_template_string(LOGIN_TEMPLATE)
 
-@admin_bp.route('/logout')def admin_logout():
+@admin_bp.route('/logout')
+def admin_logout():
     session.pop('admin_logged_in', None)
     session.pop('admin_username', None)
     return redirect(url_for('admin_login'))
@@ -1254,7 +1255,7 @@ def admin_nuevo_producto():
         content=form_content
     )
 
-@admin_bp.route('/producto/editar/<int:pid>', methods=['GET', 'POST'])
+@admin_bp.route('/producto/editar/<int:producto_id>', methods=['GET', 'POST'])
 @login_required
 def admin_editar_producto(producto_id):
     """Formulario para editar producto"""
@@ -1390,4 +1391,5 @@ if __name__ == '__main__':
     threading.Thread(target=abrir_navegador, daemon=True).start()
 
     app.run(debug=True, port=5001, use_reloader=False)
+
 
