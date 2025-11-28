@@ -896,7 +896,7 @@ with app.app_context():
 @app.route('/')
 def home():
     # [Todo el código HTML del chatbot permanece igual...]
-    return '''
+     return r'''
     <!DOCTYPE html>
     <html lang="es">
     <head>
@@ -3034,4 +3034,5 @@ if __name__ == '__main__':
     threading.Thread(target=abrir_navegador, daemon=True).start()
 
     app.run(debug=True, use_reloader=False)
+
 
