@@ -15,11 +15,6 @@ app.secret_key = 'autopartes_verese_secret_key_2024'
 
 app.register_blueprint(admin_bp, url_prefix='/admin')
 
-@app.route('/')
-def home():
-    return "<h1>Página Principal</h1>"
-
-
 # Configuración de la base de datos
 DATABASE = 'autopartes.db'
 
@@ -3035,6 +3030,7 @@ if __name__ == '__main__':
     threading.Thread(target=abrir_navegador, daemon=True).start()
 
     app.run(debug=True, use_reloader=False)
+
 
 
 
