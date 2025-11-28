@@ -583,15 +583,15 @@ def admin_nuevo_producto():
     '''
     return render_template_string(BASE_TEMPLATE, title="Nuevo", header_title="Nuevo Producto", content=form)
 
-@admin_bp.route('/producto/editar/<int:pid>', methods=['GET', 'POST'])
+@admin_bp.route('/producto/editar/<int:producto_id>', methods=['GET', 'POST'])
 @login_required
-def admin_editar_producto(pid):
-    p = obtener_producto_por_id(pid)
+def admin_editar_producto(producto_id):
+    p = obtener_producto_por_id(producto_id)
     if not p: return "No encontrado", 404
     
     if request.method == 'POST':
         f = request.form
-        actualizar_producto(pid, f['c'], f['n'], f['m'], f['mod'], float(f['p']), int(f['s']), f['d'], f['g'], f['cat'], f['ns'])
+        actualizar_producto(producto_id, f['c'], f['n'], f['m'], f['mod'], float(f['p']), int(f['s']), f['d'], f['g'], f['cat'], f['ns'])
         return redirect(url_for('admin_bp.admin_inventario'))
 
     form = f'''
@@ -613,11 +613,12 @@ def admin_editar_producto(pid):
     '''
     return render_template_string(BASE_TEMPLATE, title="Editar", header_title="Editar Producto", content=form)
 
-@admin_bp.route('/producto/eliminar/<int:pid>')
+@admin_bp.route('/producto/eliminar/<int:producto_id>')
 @login_required
-def admin_eliminar_producto(pid):
-    eliminar_producto_db(pid)
+def admin_eliminar_producto(producto_id):
+    eliminar_producto_db(producto_id)
     return redirect(url_for('admin_bp.admin_inventario'))
+
 
 
 
