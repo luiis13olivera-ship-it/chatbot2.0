@@ -9,6 +9,12 @@ import time
 app = Flask(__name__)
 app.secret_key = 'autopartes_verese_admin_secret_2024'
 
+# --- AGREGA ESTO PARA TU SUB-PÁGINA ---
+@app.route('/mi-sub-pagina')  # Esta será la dirección URL
+def sub_pagina():
+    # Puedes devolver texto simple o un archivo HTML
+    return "<h1>Hola, esta es la nueva sección</h
+
 # Configuración de la base de datos - MISMA QUE EL PROYECTO PRINCIPAL
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, 'autopartes.db')
@@ -1388,4 +1394,5 @@ if __name__ == '__main__':
     print("⏹️  Ctrl+C para detener")
     
     threading.Thread(target=abrir_navegador, daemon=True).start()
+
     app.run(debug=True, port=5001, use_reloader=False)
