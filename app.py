@@ -8,16 +8,17 @@ import sqlite3
 import json
 import os
 import hashlib
-
 from admin_system import admin_bp
+
+app = Flask(__name__)
+app.secret_key = 'autopartes_verese_secret_key_2024'
+
 app.register_blueprint(admin_bp, url_prefix='/admin')
 
 @app.route('/')
 def home():
     return "<h1>Página Principal</h1>"
 
-app = Flask(__name__)
-app.secret_key = 'autopartes_verese_secret_key_2024'
 
 # Configuración de la base de datos
 DATABASE = 'autopartes.db'
@@ -3034,5 +3035,6 @@ if __name__ == '__main__':
     threading.Thread(target=abrir_navegador, daemon=True).start()
 
     app.run(debug=True, use_reloader=False)
+
 
 
