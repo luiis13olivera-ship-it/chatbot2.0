@@ -492,531 +492,133 @@ def admin_login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        
         if username in ADMIN_USERS and ADMIN_USERS[username] == password:
             session['admin_logged_in'] = True
-            session['admin_username'] = username
-            return redirect(url_for('admin_dashboard'))
-        else:
-            return render_template_string(LOGIN_TEMPLATE, error='Usuario o contraseña incorrectos')
-    
+            # CORRECCIÓN 4: Redirección con namespace correcto
+            return redirect(url_for('admin_bp.admin_dashboard'))
+        return render_template_string(LOGIN_TEMPLATE, error='Datos incorrectos')
     return render_template_string(LOGIN_TEMPLATE)
 
 @admin_bp.route('/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
-    session.pop('admin_username', None)
-    return redirect(url_for('admin_login'))
+    return redirect(url_for('admin_bp.admin_login'))
 
-# Rutas de administración protegidas
 @admin_bp.route('/dashboard')
 @login_required
 def admin_dashboard():
-    """Dashboard administrativo"""
-    try:
-        estadisticas = obtener_estadisticas()
-        inventario_bajo = obtener_inventario_bajo()
-        
-        # Ventas recientes
-        ventas_recientes = obtener_ventas_por_periodo()[:5]  # Últimas 5 ventas
-        
-        dashboard_content = f'''
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">📦</div>
-                <div class="stat-number">{estadisticas['total_productos']}</div>
-                <div class="stat-label">Total Productos</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🛒</div>
-                <div class="stat-number">{estadisticas['total_ventas']}</div>
-                <div class="stat-label">Total Ventas</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">👥</div>
-                <div class="stat-number">{estadisticas['total_usuarios']}</div>
-                <div class="stat-label">Total Usuarios</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">💰</div>
-                <div class="stat-number">S/ {estadisticas['total_ingresos']:.2f}</div>
-                <div class="stat-label">Ingresos Totales</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📈</div>
-                <div class="stat-number">{estadisticas['ventas_hoy']}</div>
-                <div class="stat-label">Ventas Hoy</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📅</div>
-                <div class="stat-number">{estadisticas['ventas_mes']}</div>
-                <div class="stat-label">Ventas Este Mes</div>
-            </div>
-        </div>
-        
-        <div class="admin-section">
-            <div class="section-header">
-                <h2>📦 Inventario Bajo</h2>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Stock</th>
-                        <th>Categoría</th>
-                        <th>Marca</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {"".join(f'<tr><td>{p["nombre"]}</td><td class="stock-bajo">{p["stock"]}</td><td>{p["categoria"]}</td><td>{p["marca"]}</td></tr>' for p in inventario_bajo)}
-                    {'' if inventario_bajo else '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 30px;">🎉 Todo el inventario está en niveles óptimos</td></tr>'}
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="admin-section">
-            <div class="section-header">
-                <h2>🛒 Ventas Recientes</h2>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Cliente</th>
-                        <th>Monto</th>
-                        <th>Estado</th>
-                        <th>Fecha</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {"".join(f'<tr><td>#{v["id"]}</td><td>{v["cliente"]}</td><td>S/ {v["monto_total"]:.2f}</td><td class="estado-{v["estado"]}">{v["estado"].upper()}</td><td>{v["fecha_compra"]}</td></tr>' for v in ventas_recientes)}
-                    {'' if ventas_recientes else '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 30px;">📝 No hay ventas registradas</td></tr>'}
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="navigation">
-            <a href="/admin/inventario" class="admin-btn">📦 Gestionar Inventario</a>
-            <a href="/admin/ventas" class="admin-btn">🛒 Ver Todas las Ventas</a>
-            <a href="/admin/productos/nuevo" class="admin-btn secondary">➕ Agregar Producto</a>
-        </div>
-        '''
-        
-        return render_template_string(BASE_TEMPLATE, 
-            title="Dashboard Admin - Autopartes Verese Sac",
-            header_title="📊 Dashboard Administrativo",
-            content=dashboard_content
-        )
-    except Exception as e:
-        error_content = f'''
-        <div class="admin-section">
-            <div class="section-header">
-                <h2>❌ Error del Sistema</h2>
-            </div>
-            <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 4rem; margin-bottom: 20px;">😵</div>
-                <h3 style="margin-bottom: 15px; color: var(--danger);">Error al cargar el dashboard</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 25px;">
-                    No se pudo conectar a la base de datos. Asegúrate de que el proyecto principal esté ejecutándose.
-                </p>
-                <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                    Error: {str(e)}
-                </p>
-                <div style="margin-top: 30px;">
-                    <a href="http://127.0.0.1:5000" class="admin-btn" target="_blank">🚀 Ejecutar Proyecto Principal</a>
-                </div>
-            </div>
-        </div>
-        '''
-        return render_template_string(BASE_TEMPLATE, 
-            title="Error - Autopartes Verese Sac",
-            header_title="❌ Error del Sistema",
-            content=error_content
-        )
+    s = obtener_estadisticas()
+    inv = obtener_inventario_bajo()
+    
+    html = f'''
+    <div class="grid">
+        <div class="card"><h3>📦 Productos</h3><h2>{s['total_productos']}</h2></div>
+        <div class="card"><h3>🛒 Ventas</h3><h2>{s['total_ventas']}</h2></div>
+        <div class="card"><h3>💰 Ingresos</h3><h2>S/ {s['total_ingresos']:.2f}</h2></div>
+    </div>
+    <div class="card">
+        <h3>⚠️ Stock Bajo</h3>
+        <table><thead><tr><th>Producto</th><th>Stock</th></tr></thead>
+        <tbody>
+        {"".join(f"<tr><td>{p['nombre']}</td><td style='color:#EF4444;font-weight:bold'>{p['stock']}</td></tr>" for p in inv) or "<tr><td colspan='2'>Todo ok</td></tr>"}
+        </tbody></table>
+    </div>
+    '''
+    return render_template_string(BASE_TEMPLATE, title="Dashboard", header_title="Dashboard", content=html)
 
 @admin_bp.route('/inventario')
 @login_required
 def admin_inventario():
-    """Página de administración del inventario"""
-    try:
-        productos = obtener_productos()
-        
-        productos_html = ""
-        for producto in productos:
-            stock_class = "stock-bajo" if producto['stock'] <= 5 else ""
-            productos_html += f'''
-            <tr>
-                <td>{producto['codigo']}</td>
-                <td>{producto['nombre']}</td>
-                <td>{producto['marca']}</td>
-                <td>{producto['categoria']}</td>
-                <td class="{stock_class}">{producto['stock']}</td>
-                <td>S/ {producto['precio']:.2f}</td>
-                <td>{producto['numero_serie']}</td>
-                <td>
-                    <a href="/admin/productos/editar/{producto['id']}" class="admin-btn secondary" style="padding: 6px 12px; font-size: 0.8rem;">✏️ Editar</a>
-                    <a href="/admin/productos/eliminar/{producto['id']}" class="admin-btn logout" style="padding: 6px 12px; font-size: 0.8rem;" onclick="return confirm('¿Estás seguro de eliminar este producto?')">🗑️ Eliminar</a>
-                </td>
-            </tr>
-            '''
-        
-        inventario_content = f'''
-        <div class="admin-section">
-            <div class="section-header">
-                <h2>📋 Inventario Completo</h2>
-                <a href="/admin/productos/nuevo" class="admin-btn">➕ Agregar Producto</a>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Código</th>
-                        <th>Nombre</th>
-                        <th>Marca</th>
-                        <th>Categoría</th>
-                        <th>Stock</th>
-                        <th>Precio</th>
-                        <th>N° Serie</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {productos_html if productos else '<tr><td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 30px;">📝 No hay productos en el inventario</td></tr>'}
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="navigation">
-            <a href="/admin" class="admin-btn">← Volver al Dashboard</a>
-            <a href="/admin/productos/nuevo" class="admin-btn secondary">➕ Agregar Nuevo Producto</a>
-        </div>
-        '''
-        
-        return render_template_string(BASE_TEMPLATE, 
-            title="Inventario - Autopartes Verese Sac",
-            header_title="📦 Gestión de Inventario",
-            content=inventario_content
-        )
-    except Exception as e:
-        error_content = f'''
-        <div class="admin-section">
-            <div class="section-header">
-                <h2>❌ Error del Sistema</h2>
-            </div>
-            <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 4rem; margin-bottom: 20px;">😵</div>
-                <h3 style="margin-bottom: 15px; color: var(--danger);">Error al cargar el inventario</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 25px;">
-                    No se pudo conectar a la base de datos.
-                </p>
-                <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                    Error: {str(e)}
-                </p>
-            </div>
-        </div>
-        '''
-        return render_template_string(BASE_TEMPLATE, 
-            title="Error - Autopartes Verese Sac",
-            header_title="❌ Error del Sistema",
-            content=error_content
-        )
-        
+    prods = obtener_productos()
+    rows = ""
+    for p in prods:
+        rows += f'''<tr>
+            <td>{p['codigo']}</td><td>{p['nombre']}</td><td>{p['stock']}</td><td>S/ {p['precio']}</td>
+            <td>
+                <a href="/admin/producto/editar/{p['id']}" class="btn sec">✏️</a>
+                <a href="/admin/producto/eliminar/{p['id']}" class="btn danger" onclick="return confirm('¿Borrar?')">🗑️</a>
+            </td>
+        </tr>'''
+    
+    html = f'''
+    <div style="margin-bottom:20px"><a href="/admin/producto/nuevo" class="btn">➕ Nuevo Producto</a></div>
+    <table><thead><tr><th>Cod</th><th>Nombre</th><th>Stock</th><th>Precio</th><th>Acciones</th></tr></thead>
+    <tbody>{rows}</tbody></table>
+    '''
+    return render_template_string(BASE_TEMPLATE, title="Inventario", header_title="Inventario", content=html)
+
 @admin_bp.route('/ventas')
 @login_required
 def admin_ventas():
-    """Página de administración de ventas"""
-    try:
-        ventas = obtener_ventas_por_periodo()
-        
-        ventas_html = ""
-        for venta in ventas:
-            estado_color = {
-                'pendiente': 'estado-pendiente',
-                'proceso': 'estado-proceso', 
-                'completado': 'estado-completado',
-                'cancelado': 'estado-cancelado'
-            }.get(venta['estado'], '')
-            
-            ventas_html += f'''
-            <tr>
-                <td>#{venta['id']}</td>
-                <td>{venta['cliente']}</td>
-                <td>S/ {venta['monto_total']:.2f}</td>
-                <td>{venta['cantidad_total']}</td>
-                <td class="{estado_color}">{venta['estado'].upper()}</td>
-                <td>{venta['metodo_pago']}</td>
-                <td>{venta['fecha_compra']}</td>
-            </tr>
-            '''
-        
-        ventas_content = f'''
-        <div class="admin-section">
-            <div class="section-header">
-                <h2>📋 Historial de Ventas</h2>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Cliente</th>
-                        <th>Monto</th>
-                        <th>Cantidad</th>
-                        <th>Estado</th>
-                        <th>Método Pago</th>
-                        <th>Fecha</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {ventas_html if ventas else '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 30px;">📝 No hay ventas registradas</td></tr>'}
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="navigation">
-            <a href="/admin" class="admin-btn">← Volver al Dashboard</a>
-            <a href="/admin/inventario" class="admin-btn secondary">📦 Gestionar Inventario</a>
-        </div>
-        '''
-        
-        return render_template_string(BASE_TEMPLATE, 
-            title="Ventas - Autopartes Verese Sac",
-            header_title="🛒 Gestión de Ventas",
-            content=ventas_content
-        )
-    except Exception as e:
-        error_content = f'''
-        <div class="admin-section">
-            <div class="section-header">
-                <h2>❌ Error del Sistema</h2>
-            </div>
-            <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 4rem; margin-bottom: 20px;">😵</div>
-                <h3 style="margin-bottom: 15px; color: var(--danger);">Error al cargar las ventas</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 25px;">
-                    No se pudo conectar a la base de datos.
-                </p>
-                <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                    Error: {str(e)}
-                </p>
-            </div>
-        </div>
-        '''
-        return render_template_string(BASE_TEMPLATE, 
-            title="Error - Autopartes Verese Sac",
-            header_title="❌ Error del Sistema",
-            content=error_content
-        )
+    ventas = obtener_ventas_por_periodo()
+    rows = "".join(f"<tr><td>#{v['id']}</td><td>{v['cliente']}</td><td>S/ {v['monto_total']}</td><td>{v['estado']}</td></tr>" for v in ventas)
+    html = f'<table><thead><tr><th>ID</th><th>Cliente</th><th>Monto</th><th>Estado</th></tr></thead><tbody>{rows}</tbody></table>'
+    return render_template_string(BASE_TEMPLATE, title="Ventas", header_title="Historial Ventas", content=html)
 
-# Rutas para crear, editar y eliminar productos (se mantienen igual que antes)
 @admin_bp.route('/producto/nuevo', methods=['GET', 'POST'])
 @login_required
 def admin_nuevo_producto():
-    """Formulario para crear nuevo producto"""
     if request.method == 'POST':
-        codigo = request.form.get('codigo')
-        nombre = request.form.get('nombre')
-        marca = request.form.get('marca')
-        modelo = request.form.get('modelo')
-        precio = float(request.form.get('precio'))
-        stock = int(request.form.get('stock'))
-        descripcion = request.form.get('descripcion')
-        garantia = request.form.get('garantia')
-        categoria = request.form.get('categoria')
-        numero_serie = request.form.get('numero_serie')
-        
-        if crear_producto(codigo, nombre, marca, modelo, precio, stock, descripcion, garantia, categoria, numero_serie):
-            mensaje = '<div class="alert alert-success">✅ Producto creado exitosamente</div>'
-        else:
-            mensaje = '<div class="alert alert-error">❌ Error al crear el producto (posible código o número de serie duplicado)</div>'
-    else:
-        mensaje = ''
+        f = request.form
+        if crear_producto(f['c'], f['n'], f['m'], f['mod'], float(f['p']), int(f['s']), f['d'], f['g'], f['cat'], f['ns']):
+            # CORRECCIÓN 5: Redirección correcta
+            return redirect(url_for('admin_bp.admin_inventario'))
     
-    form_content = f'''
-    <div class="admin-section">
-        <div class="section-header">
-            <h2>➕ Agregar Nuevo Producto</h2>
-        </div>
-        {mensaje}
-        <form method="POST">
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Código *</label>
-                    <input type="text" name="codigo" class="form-input" placeholder="FR-001" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">N° Serie *</label>
-                    <input type="text" name="numero_serie" class="form-input" placeholder="BOS-0987-FR" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Nombre *</label>
-                <input type="text" name="nombre" class="form-input" placeholder="Pastillas de Freno" required>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Marca *</label>
-                    <input type="text" name="marca" class="form-input" placeholder="Bosch" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Categoría *</label>
-                    <select name="categoria" class="form-select" required>
-                        <option value="Frenos">Frenos</option>
-                        <option value="Motor">Motor</option>
-                        <option value="Suspension">Suspensión</option>
-                        <option value="Electrico">Eléctrico</option>
-                        <option value="Lubricantes">Lubricantes</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Modelos Compatibles</label>
-                <input type="text" name="modelo" class="form-input" placeholder="Toyota Corolla 2015-2020">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Precio (S/) *</label>
-                    <input type="number" step="0.01" name="precio" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Stock *</label>
-                    <input type="number" name="stock" class="form-input" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Garantía</label>
-                <input type="text" name="garantia" class="form-input" placeholder="12 meses">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Descripción</label>
-                <textarea name="descripcion" class="form-textarea"></textarea>
-            </div>
-            <div style="display: flex; gap: 15px;">
-                <a href="/admin/inventario" class="admin-btn secondary" style="flex: 1;">Cancelar</a>
-                <button type="submit" class="admin-btn" style="flex: 2;">Guardar Producto</button>
-            </div>
-        </form>
+    form = '''
+    <form method="POST">
+    <div class="grid">
+        <div class="form-group"><label>Código</label><input name="c" required></div>
+        <div class="form-group"><label>Nombre</label><input name="n" required></div>
+        <div class="form-group"><label>Marca</label><input name="m" required></div>
+        <div class="form-group"><label>Precio</label><input name="p" type="number" step="0.01" required></div>
+        <div class="form-group"><label>Stock</label><input name="s" type="number" required></div>
+        <div class="form-group"><label>Categoría</label><input name="cat" required></div>
+        <div class="form-group"><label>Serie</label><input name="ns" required></div>
     </div>
+    <div class="form-group"><label>Modelo</label><input name="mod"></div>
+    <div class="form-group"><label>Descripción</label><textarea name="d"></textarea></div>
+    <div class="form-group"><label>Garantía</label><input name="g"></div>
+    <button type="submit" class="btn">Guardar</button>
+    </form>
     '''
-    
-    return render_template_string(BASE_TEMPLATE, 
-        title="Nuevo Producto - Autopartes Verese Sac",
-        header_title="➕ Agregar Nuevo Producto",
-        content=form_content
-    )
+    return render_template_string(BASE_TEMPLATE, title="Nuevo", header_title="Nuevo Producto", content=form)
 
-@admin_bp.route('/producto/editar/<int:producto_id>', methods=['GET', 'POST'])
+@admin_bp.route('/producto/editar/<int:pid>', methods=['GET', 'POST'])
 @login_required
-def admin_editar_producto(producto_id):
-    """Formulario para editar producto"""
-    producto = obtener_producto_por_id(producto_id)
-    if not producto:
-        return "Producto no encontrado", 404
+def admin_editar_producto(pid):
+    p = obtener_producto_por_id(pid)
+    if not p: return "No encontrado", 404
     
     if request.method == 'POST':
-        codigo = request.form.get('codigo')
-        nombre = request.form.get('nombre')
-        marca = request.form.get('marca')
-        modelo = request.form.get('modelo')
-        precio = float(request.form.get('precio'))
-        stock = int(request.form.get('stock'))
-        descripcion = request.form.get('descripcion')
-        garantia = request.form.get('garantia')
-        categoria = request.form.get('categoria')
-        numero_serie = request.form.get('numero_serie')
-        
-        if actualizar_producto(producto_id, codigo, nombre, marca, modelo, precio, stock, descripcion, garantia, categoria, numero_serie):
-            mensaje = '<div class="alert alert-success">✅ Producto actualizado</div>'
-            producto = obtener_producto_por_id(producto_id)
-        else:
-            mensaje = '<div class="alert alert-error">❌ Error al actualizar</div>'
-    else:
-        mensaje = ''
-    
-    form_content = f'''
-    <div class="admin-section">
-        <div class="section-header">
-            <h2>✏️ Editar Producto</h2>
-        </div>
-        {mensaje}
-        <form method="POST">
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Código *</label>
-                    <input type="text" name="codigo" value="{producto['codigo']}" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">N° Serie *</label>
-                    <input type="text" name="numero_serie" value="{producto['numero_serie']}" class="form-input" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Nombre *</label>
-                <input type="text" name="nombre" value="{producto['nombre']}" class="form-input" required>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Marca *</label>
-                    <input type="text" name="marca" value="{producto['marca']}" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Categoría *</label>
-                    <select name="categoria" class="form-select" required>
-                        <option value="Frenos" {"selected" if producto['categoria']=='Frenos' else ""}>Frenos</option>
-                        <option value="Motor" {"selected" if producto['categoria']=='Motor' else ""}>Motor</option>
-                        <option value="Suspension" {"selected" if producto['categoria']=='Suspension' else ""}>Suspensión</option>
-                        <option value="Electrico" {"selected" if producto['categoria']=='Electrico' else ""}>Eléctrico</option>
-                        <option value="Lubricantes" {"selected" if producto['categoria']=='Lubricantes' else ""}>Lubricantes</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Modelos Compatibles</label>
-                <input type="text" name="modelo" value="{producto['modelo'] or ''}" class="form-input">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Precio (S/) *</label>
-                    <input type="number" step="0.01" name="precio" value="{producto['precio']}" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Stock *</label>
-                    <input type="number" name="stock" value="{producto['stock']}" class="form-input" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Garantía</label>
-                <input type="text" name="garantia" value="{producto['garantia'] or ''}" class="form-input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Descripción</label>
-                <textarea name="descripcion" class="form-textarea">{producto['descripcion'] or ''}</textarea>
-            </div>
-            <div style="display: flex; gap: 15px;">
-                <a href="/admin/inventario" class="admin-btn secondary" style="flex: 1;">Cancelar</a>
-                <button type="submit" class="admin-btn" style="flex: 2;">Actualizar Producto</button>
-            </div>
-        </form>
+        f = request.form
+        actualizar_producto(pid, f['c'], f['n'], f['m'], f['mod'], float(f['p']), int(f['s']), f['d'], f['g'], f['cat'], f['ns'])
+        return redirect(url_for('admin_bp.admin_inventario'))
+
+    form = f'''
+    <form method="POST">
+    <div class="grid">
+        <div class="form-group"><label>Código</label><input name="c" value="{p['codigo']}"></div>
+        <div class="form-group"><label>Nombre</label><input name="n" value="{p['nombre']}"></div>
+        <div class="form-group"><label>Marca</label><input name="m" value="{p['marca']}"></div>
+        <div class="form-group"><label>Precio</label><input name="p" value="{p['precio']}"></div>
+        <div class="form-group"><label>Stock</label><input name="s" value="{p['stock']}"></div>
+        <div class="form-group"><label>Categoría</label><input name="cat" value="{p['categoria']}"></div>
+        <div class="form-group"><label>Serie</label><input name="ns" value="{p['numero_serie']}"></div>
     </div>
+    <input name="mod" type="hidden" value="{p['modelo']}">
+    <input name="d" type="hidden" value="{p['descripcion']}">
+    <input name="g" type="hidden" value="{p['garantia']}">
+    <button type="submit" class="btn">Actualizar</button>
+    </form>
     '''
-    
-    return render_template_string(BASE_TEMPLATE, 
-        title=f"Editar {producto['nombre']}",
-        header_title=f"✏️ Editar {producto['nombre']}",
-        content=form_content
-    )
+    return render_template_string(BASE_TEMPLATE, title="Editar", header_title="Editar Producto", content=form)
 
-@admin_bp.route('/producto/eliminar/<int:producto_id>')
+@admin_bp.route('/producto/eliminar/<int:pid>')
 @login_required
-def admin_eliminar_producto(producto_id):
-    """Eliminar producto"""
-    if eliminar_producto(producto_id):
-        return redirect(url_for('admin_inventario'))
-    else:
-        return "Error al eliminar", 500
+def admin_eliminar_producto(pid):
+    eliminar_producto_db(pid)
+    return redirect(url_for('admin_bp.admin_inventario'))
 
-def abrir_navegador():
-    """Abre el navegador automáticamente"""
-    time.sleep(2)
-    webbrowser.open('http://127.0.0.1:5001/admin/login')
 
 
 
