@@ -6,7 +6,7 @@ import webbrowser
 import threading
 import time
 
-admin_bp = Blueprint('admin_bp', __name__, url_prefix='/sistema-admin')
+admin_bp = Blueprint('admin_bp', __name__)
 
 # Configuración de la base de datos - MISMA QUE EL PROYECTO PRINCIPAL
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1363,5 +1363,6 @@ def abrir_navegador():
     """Abre el navegador automáticamente"""
     time.sleep(2)
     webbrowser.open('http://127.0.0.1:5001/admin/login')
+
 
 
