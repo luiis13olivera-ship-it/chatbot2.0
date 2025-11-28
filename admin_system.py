@@ -7,8 +7,6 @@ import threading
 import time
 
 admin_bp = Blueprint('admin_bp', __name__, url_prefix='/sistema-admin')
-app.secret_key = 'autopartes_verese_admin_secret_2024'
-
 
 # Configuración de la base de datos - MISMA QUE EL PROYECTO PRINCIPAL
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1391,5 +1389,6 @@ if __name__ == '__main__':
     threading.Thread(target=abrir_navegador, daemon=True).start()
 
     app.run(debug=True, port=5001, use_reloader=False)
+
 
 
