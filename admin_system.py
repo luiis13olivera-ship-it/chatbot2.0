@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, g, session, redirect, url_for, render_template_string
+from flask import Blueprint, request, jsonify, g, session, redirect, url_for, render_template_string 
 import sqlite3
 import os
 from datetime import datetime
@@ -6,14 +6,9 @@ import webbrowser
 import threading
 import time
 
-app = Flask(__name__)
+admin_bp = Blueprint('admin_bp', __name__, url_prefix='/sistema-admin')
 app.secret_key = 'autopartes_verese_admin_secret_2024'
 
-# --- AGREGA ESTO PARA TU SUB-PÁGINA ---
-@app.route('/mi-sub-pagina')  # Esta será la dirección URL
-def sub_pagina():
-    # Puedes devolver texto simple o un archivo HTML
-    return "<h1>Hola, esta es la nueva sección</h
 
 # Configuración de la base de datos - MISMA QUE EL PROYECTO PRINCIPAL
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -843,8 +838,8 @@ BASE_TEMPLATE = '''
 '''
 
 # Ruta de login para administración
-@app.route('/', methods=['GET', 'POST'])
-@app.route('/admin/login', methods=['GET', 'POST'])
+@admin_bp.route('/', methods=['GET', 'POST'])
+@admin_bp.route('/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -859,14 +854,13 @@ def admin_login():
     
     return render_template_string(LOGIN_TEMPLATE)
 
-@app.route('/admin/logout')
-def admin_logout():
+@admin_bp.route('/logout')def admin_logout():
     session.pop('admin_logged_in', None)
     session.pop('admin_username', None)
     return redirect(url_for('admin_login'))
 
 # Rutas de administración protegidas
-@app.route('/admin')
+@admin_bp.route('/dashboard')
 @login_required
 def admin_dashboard():
     """Dashboard administrativo"""
@@ -991,7 +985,7 @@ def admin_dashboard():
             content=error_content
         )
 
-@app.route('/admin/inventario')
+@admin_bp.route('/inventario')
 @login_required
 def admin_inventario():
     """Página de administración del inventario"""
@@ -1076,8 +1070,8 @@ def admin_inventario():
             header_title="❌ Error del Sistema",
             content=error_content
         )
-
-@app.route('/admin/ventas')
+        
+@admin_bp.route('/ventas')
 @login_required
 def admin_ventas():
     """Página de administración de ventas"""
@@ -1164,7 +1158,7 @@ def admin_ventas():
         )
 
 # Rutas para crear, editar y eliminar productos (se mantienen igual que antes)
-@app.route('/admin/productos/nuevo', methods=['GET', 'POST'])
+@admin_bp.route('/producto/nuevo', methods=['GET', 'POST'])
 @login_required
 def admin_nuevo_producto():
     """Formulario para crear nuevo producto"""
@@ -1260,7 +1254,7 @@ def admin_nuevo_producto():
         content=form_content
     )
 
-@app.route('/admin/productos/editar/<int:producto_id>', methods=['GET', 'POST'])
+@admin_bp.route('/producto/editar/<int:pid>', methods=['GET', 'POST'])
 @login_required
 def admin_editar_producto(producto_id):
     """Formulario para editar producto"""
@@ -1361,7 +1355,7 @@ def admin_editar_producto(producto_id):
         content=form_content
     )
 
-@app.route('/admin/productos/eliminar/<int:producto_id>')
+@admin_bp.route('/producto/eliminar/<int:producto_id>')
 @login_required
 def admin_eliminar_producto(producto_id):
     """Eliminar producto"""
@@ -1396,3 +1390,4 @@ if __name__ == '__main__':
     threading.Thread(target=abrir_navegador, daemon=True).start()
 
     app.run(debug=True, port=5001, use_reloader=False)
+
