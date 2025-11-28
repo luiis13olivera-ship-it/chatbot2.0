@@ -221,10 +221,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Inicializar base de datos al inicio
-with app.app_context():
-    init_db()
-
 # Templates HTML CORREGIDOS
 LOGIN_TEMPLATE = '''
 <!DOCTYPE html>
@@ -1367,28 +1363,5 @@ def abrir_navegador():
     """Abre el navegador automáticamente"""
     time.sleep(2)
     webbrowser.open('http://127.0.0.1:5001/admin/login')
-
-if __name__ == '__main__':
-    print("🔐 Iniciando Sistema Administrativo - Autopartes Verese Sac...")
-    
-    # Verificar conexión a la base de datos
-    with app.app_context():
-        if init_db():
-            stats = obtener_estadisticas()
-            print(f"✅ Conectado a la base de datos")
-            print(f"📦 Productos: {stats['total_productos']} | 🛒 Ventas: {stats['total_ventas']} | 👥 Usuarios: {stats['total_usuarios']}")
-        else:
-            print("❌ No se pudo conectar a la base de datos")
-            print("💡 Ejecuta primero: python app.py")
-    
-    print("🌐 Sistema administrativo: http://127.0.0.1:5001/admin/login")
-    print("💬 Chat principal: http://127.0.0.1:5000")
-    print("👥 Usuarios: Pedro_48, Abad_48, Sergio_48, Olivera_48")
-    print("⏹️  Ctrl+C para detener")
-    
-    threading.Thread(target=abrir_navegador, daemon=True).start()
-
-    app.run(debug=True, port=5001, use_reloader=False)
-
 
 
