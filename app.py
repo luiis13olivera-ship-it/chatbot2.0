@@ -8,17 +8,20 @@ import sqlite3
 import json
 import os
 import hashlib
-from admin_system import admin_bp
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
+
 
 app = Flask(__name__)
 app.secret_key = 'autopartes_verese_secret_key_2024'
+# Configuración CORS
+CORS(app)
 
-app.register_blueprint(admin_bp, url_prefix='/admin')
+# Configuración de SocketIO para comunicación en tiempo real
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configuración de la base de datos
 DATABASE = 'autopartes.db'
-
-# Credenciales de administradores
 
 def get_db():
     """Obtiene la conexión a la base de datos"""
@@ -357,33 +360,6 @@ def registrar_pago(compra_id, metodo_pago, monto, datos_pago=None):
     
     db.commit()
 
-# Funciones para reportes y consultas
-def obtener_ventas_por_periodo(fecha_inicio, fecha_fin):
-    """Obtiene ventas por periodo"""
-    db = get_db()
-    ventas = db.execute('''
-        SELECT c.fecha_compra, c.monto_total, u.nombre as cliente, c.estado
-        FROM compras c
-        JOIN usuarios u ON c.usuario_id = u.id
-        WHERE c.fecha_compra BETWEEN ? AND ?
-        ORDER BY c.fecha_compra DESC
-    ''', (fecha_inicio, fecha_fin)).fetchall()
-    
-    return [dict(venta) for venta in ventas]
-
-def obtener_inventario_bajo(limite=5):
-    """Obtiene productos con stock bajo"""
-    db = get_db()
-    productos = db.execute('''
-        SELECT * FROM productos 
-        WHERE stock <= ? AND activo = 1
-        ORDER BY stock ASC
-    ''', (limite,)).fetchall()
-    
-    return [dict(producto) for producto in productos]
-
-# Sistema de autenticación
-
 class ChatBotAutopartes:
     def __init__(self):
         self.respuestas = {
@@ -395,11 +371,11 @@ class ChatBotAutopartes:
             },
             'ubicacion': {
                 'titulo': 'Ubicación y Sucursales',
-                'contenido': '''**📍 Sucursal Principal:**
+                'contenido': '''📍 Sucursal Principal:
 Av. Las Autopartes 123
 San Juan de Lurigancho, Lima, Perú
 
-**📍 Sucursal Centro:**
+📍 Sucursal Centro:
 Jr. Repuestos 456, Cercado de Lima
 
 **Horario de atención en ambas sucursales:**
@@ -417,25 +393,25 @@ Sábados: 9:00 am - 2:00 pm''',
 • Culatas, bloques y kits de reparación
 • Embragues y componentes
 
-**🛑 SISTEMA DE FRENOS**
+🛑 SISTEMA DE FRENOS
 • Pastillas de freno (cerámica, semi-metálica)
 • Discos y tambores
 • Líquido de frenos DOT 3, DOT 4
 • Calipers y cilindros de rueda
 
-**⚡ SISTEMA ELÉCTRICO**
+⚡ SISTEMA ELÉCTRICO
 • Baterías (12V, 24V)
 • Alternadores y motor de arranque
 • Sensores y módulos de control
 • Cableados y fusibles
 
-**🔄 SUSPENSIÓN Y DIRECCIÓN**
+🔄 SUSPENSIÓN Y DIRECCIÓN
 • Amortiguadores (hidráulicos, gas)
 • Rotulas, terminales y bujes
 • Barras estabilizadoras
 • Caja de dirección
 
-**🛢️ LUBRICANTES Y FLUIDOS**
+🛢️ LUBRICANTES Y FLUIDOS
 • Aceites sintéticos y minerales
 • Refrigerante y anticongelante
 • Liquido de dirección hidráulica
@@ -445,19 +421,19 @@ Sábados: 9:00 am - 2:00 pm''',
             },
             'marcas': {
                 'titulo': 'Marcas y Proveedores',
-                'contenido': '''**🏆 Marcas Premium:**
+                'contenido': '''🏆 Marcas Premium:
 • Toyota • Nissan • Honda
 • Hyundai • Kia • Chevrolet
 • Ford • Volkswagen • BMW
 
-**🇪🇺 Marcas Europeas:**
+🌍 Marcas Europeas:
 • Mercedes-Benz • Audi • Volvo
 • Renault • Peugeot • Fiat
 
-**🇺🇸 Marcas Americanas:**
+🌎 Marcas Americanas:
 • Dodge • Chrysler • Jeep • GMC
 
-**🔩 Proveedores Oficiales:**
+🔩 Proveedores Oficiales:
 • Bosch • Denso • ACDelco
 • Monroe • KYB • Gates
 
@@ -469,16 +445,16 @@ Sábados: 9:00 am - 2:00 pm''',
                 'titulo': 'Cotizaciones y Precios',
                 'contenido': '''**📋 Para una cotización precisa necesitamos:**
 
-1. **Marca y modelo** del vehículo
-2. **Año** de fabricación
-3. **Autoparte específica** requerida
-4. **Número de VIN** (opcional)
+1. Marca y modelo del vehículo
+2. Año de fabricación
+3. Autoparte específica requerida
+4. Número de VIN (opcional)
 
-**💳 Métodos de pago aceptados:**
+💳 Métodos de pago aceptados:
 • Efectivo • Tarjetas crédito/débito
 • Transferencia bancaria • Yape/Plin
 
-**🚚 Opciones de entrega:**
+🚚 Opciones de entrega:
 • Recojo en tienda • Delivery express
 • Envío a provincia''',
                 'icono': '💰',
@@ -486,19 +462,19 @@ Sábados: 9:00 am - 2:00 pm''',
             },
             'garantia': {
                 'titulo': 'Garantías y Políticas',
-                'contenido': '''**✅ Nuestro Compromiso de Calidad:**
+                'contenido': '''✅ Nuestro Compromiso de Calidad:
 
-**🛡️ Garantía en Autopartes:**
+🛡️ Garantía en Autopartes:
 • 6 meses a 1 año según el producto
 • Cobertura total por defectos de fabricación
 • Reemplazo inmediato en caso de fallas
 
-**📝 Política de Devoluciones:**
+📝 Política de Devoluciones:
 • 30 días para devoluciones
 • Producto en perfecto estado
 • Embalaje original completo
 
-**🔧 Servicio de Instalación:**
+🔧 Servicio de Instalación:
 • Taller propio especializado
 • Técnicos certificados
 • Garantía en mano de obra''',
@@ -507,21 +483,21 @@ Sábados: 9:00 am - 2:00 pm''',
             },
             'contacto': {
                 'titulo': 'Contacto y Comunicación',
-                'contenido': '''**📞 Atención Telefónica:**
+                'contenido': '''📞 Atención Telefónica:
 • Central: (01) 456-7890
 • Ventas: (01) 6200 158
 • Soporte Técnico: (01) 456-7892
 
-**📱 WhatsApp Business:**
+📱 WhatsApp Business:
 • +51 987 654 321 (Ventas)
 • +51 987 654 322 (Soporte)
 
-**✉️ Correos Electrónicos:**
+✉️ Correos Electrónicos:
 • General: info@autopartesvirtual.com
 • Ventas: ventas@autopartesvirtual.com
 • Soporte: soporte@autopartesvirtual.com
 
-**🌐 Redes Sociales:**
+🌐 Redes Sociales:
 • Facebook: /AutopartesVirtual
 • Instagram: @AutopartesVirtual
 • TikTok: @AutopartesVirtual''',
@@ -532,22 +508,22 @@ Sábados: 9:00 am - 2:00 pm''',
                 'titulo': 'Servicios Adicionales',
                 'contenido': '''**🔧 SERVICIOS PROFESIONALES:**
 
-**🛠️ Instalación y Montaje:**
+🛠️ Instalación y Montaje:
 • Instalación de autopartes
 • Diagnóstico computarizado
 • Mantenimiento preventivo
 
-**🚗 Asesoría Técnica:**
+🚗 Asesoría Técnica:
 • Asesoramiento especializado
 • Recomendaciones técnicas
 • Solución de problemas
 
-**📦 Logística y Entrega:**
+📦 Logística y Entrega:
 • Delivery express (2-4 horas)
 • Envíos a nivel nacional
 • Instalación a domicilio
 
-**🔄 Plan de Mantenimiento:**
+🔄 Plan de Mantenimiento:
 • Programas de mantenimiento
 • Recordatorios automáticos
 • Descuentos por fidelidad''',
@@ -569,6 +545,22 @@ Sábados: 9:00 am - 2:00 pm''',
             "¡Que tengas un excelente día! Si necesitas algo más, aquí estaré para ayudarte.",
             "¡Fue un gusto atenderte! No olvides que tenemos promociones especiales cada semana."
         ]
+
+    def enviar_pregunta_soporte(self, pregunta):
+        """Envía preguntas no comprendidas al sistema de soporte"""
+        try:
+            import requests
+            requests.post(
+                'http://127.0.0.1:5001/api/pregunta_no_comprendida',
+                json={
+                    'pregunta': pregunta,
+                    'categoria': 'Consulta General'
+                },
+                timeout=3
+            )
+            print(f"✅ Pregunta enviada a soporte: {pregunta}")
+        except Exception as e:
+            print(f"❌ Error al enviar pregunta a soporte: {e}")
 
     def buscar_productos(self, categoria=None, marca=None, modelo=None):
         """Busca productos en la base de datos según los criterios"""
@@ -684,7 +676,7 @@ Sábados: 9:00 am - 2:00 pm''',
         pregunta = pregunta.lower().strip()
         
         # Saludo inicial
-        if any(palabra in pregunta for palabra in ['hola', 'buenos días', 'buenas tardes', 'buenas', 'hi', 'hello', 'buen dia']):
+        if any(palabra in pregunta for palabra in ['hola que tal', 'Buenas', 'hola', 'buenas', 'hi', 'hello', 'hola como estas']):
             return {
                 'titulo': '¡Hola!',
                 'contenido': random.choice(self.saludos),
@@ -693,26 +685,25 @@ Sábados: 9:00 am - 2:00 pm''',
             }
         
         # Métodos de pago
-        elif any(palabra in pregunta for palabra in ['métodos de pago', 'metodos de pago', 'cuales son sus métodos de pago', 'tipo de pago', 'pagos', 'formas de pago', 'medios de pago']):
+        elif any(palabra in pregunta for palabra in ['Cuales son sus metodos de pago', 'metodos de pago', 'cuales son sus métodos de pago', 'tipo de pago', 'cuales son sus formas de pago', 'formas de pago', 'medios de pago', 'cuales son sus medios de pago']):
             return {
                 'titulo': 'Métodos de Pago',
-                'contenido': '''**Excelente pregunta, contamos con todo tipo de pago para BCP, BVVA e INTERBANK:**
+                'contenido': '''Excelente pregunta, contamos con todo tipo de pago para BCP, BVVA e INTERBANK:
 
-💳 **Yape:** +51 978 462 485
-📱 **Plin:** +51 978 462 485  
-🏦 **Transferencia:** 1558 - 1749667 - 26560
+                💲 💳 Yape: +51 978 462 485 - Titular: Abas Arquinigo
+                💲 📱 Plin: +51 978 462 485  - Titular: Sergio espinal
+                💲 🏦 Transferencia: 1558 - 1749667 - 26560 - Titular: Luis Olivera
 
-**También aceptamos:**
-• Efectivo en soles
-• Tarjetas de crédito/débito (Visa, MasterCard)
-• Depósitos bancarios
-• Pago contra entrega''',
-                'icono': '💳',
-                'color': '#10B981'
+                También aceptamos:
+                • Efectivo en soles
+                • Tarjetas de crédito/débito (Visa, MasterCard)
+                • Pago contra entrega''',
+                            'icono': '💳',
+                            'color': '#10B981'
             }
         
         # Catálogo y productos específicos
-        elif any(palabra in pregunta for palabra in ['catalogo', 'catálogo', 'productos', 'piezas', 'repuestos', 'stock', 'disponible', 'listado', 'inventario', 'tabla', 'precios']):
+        elif any(palabra in pregunta for palabra in ['cual es su catalogo de ventas', 'muestrame el catálogo', 'muestrame los productos', 'cuales son las piezas', 'cuales son sus repuestos', 'stock', 'aun tiene poductos disponibles', 'listado', 'inventario', 'tabla', 'precios']):
             productos = self.buscar_productos()
             return {
                 'titulo': 'Catálogo Completo',
@@ -746,7 +737,7 @@ Sábados: 9:00 am - 2:00 pm''',
                 'tabla': self.formatear_catalogo_tabla(productos)
             }
         
-        elif any(palabra in pregunta for palabra in ['suspensión', 'suspension', 'amortiguador', 'rotula']):
+        elif any(palabra in pregunta for palabra in ['tienen piesas de suspensión', 'cuales son sus suspension', 'tienen amortiguadores', 'cuales son sus rotula']):
             productos = self.buscar_productos(categoria='Suspension')
             return {
                 'titulo': 'Suspensión y Dirección',
@@ -757,7 +748,7 @@ Sábados: 9:00 am - 2:00 pm''',
                 'tabla': self.formatear_catalogo_tabla(productos)
             }
         
-        elif any(palabra in pregunta for palabra in ['eléctrico', 'electrico', 'batería', 'bateria', 'alternador']):
+        elif any(palabra in pregunta for palabra in ['tienen piezas eléctricas', 'cuales son sus productos electricos', 'tienen baterías', 'que marcas de bateria tienen', 'tienen alternadores']):
             productos = self.buscar_productos(categoria='Electrico')
             return {
                 'titulo': 'Sistema Eléctrico',
@@ -768,7 +759,7 @@ Sábados: 9:00 am - 2:00 pm''',
                 'tabla': self.formatear_catalogo_tabla(productos)
             }
         
-        elif any(palabra in pregunta for palabra in ['aceite', 'lubricante', 'fluido']):
+        elif any(palabra in pregunta for palabra in ['tienen liquido de aceite', 'tienen lubricante', 'tienen liquido para frenos']):
             productos = self.buscar_productos(categoria='Lubricantes')
             return {
                 'titulo': 'Lubricantes y Fluidos',
@@ -794,55 +785,55 @@ Sábados: 9:00 am - 2:00 pm''',
                 }
         
         # Horario de atención
-        elif any(palabra in pregunta for palabra in ['horario', 'hora', 'atención', 'abren', 'cierra', 'atienden', 'cuándo', 'cuando', 'disponible']):
+        elif any(palabra in pregunta for palabra in ['cual es su horario de atencion', 'a que hora atienden', 'cuando inicia su atención', 'a que hora abren', 'a que hora cierra', 'cuando atienden', 'que dias atienden', 'cuando abren', 'a que hora estan disponible']):
             return self.respuestas['horario']
         
         # Ubicación
-        elif any(palabra in pregunta for palabra in ['ubicación', 'dirección', 'mapa', 'donde', 'lugar', 'ubicacion', 'local', 'ubican', 'encuentran', 'sucursal', 'direccion']):
+        elif any(palabra in pregunta for palabra in ['donde estan ubicados', 'cual es su dirección', 'mapa', 'donde estan', 'en que lugar estan', 'cual es su ubicacion', 'cual es su local', 'donde se ubican', 'donde se encuentran', 'en que sucursal estan', 'direccion']):
             return self.respuestas['ubicacion']
         
         # Marcas
-        elif any(palabra in pregunta for palabra in ['marca', 'modelo', 'toyota', 'nissan', 'honda', 'hyundai', 'chevrolet', 'ford', 'bmw', 'mercedes', 'proveedor']):
+        elif any(palabra in pregunta for palabra in ['que marcas venden', 'que modelos tienen', 'toyota', 'nissan', 'honda', 'hyundai', 'chevrolet', 'ford', 'bmw', 'mercedes', 'proveedor']):
             return self.respuestas['marcas']
         
         # Cotización
-        elif any(palabra in pregunta for palabra in ['costo', 'precio', 'cuánto', 'vale', 'costos', 'precios', 'cotización', 'cotizacion', 'presupuesto', 'valor']):
+        elif any(palabra in pregunta for palabra in ['cuales son sus costos', 'que precios tienen', 'cuánto sale', 'vale', 'costos', 'precios', 'cotización', 'cotizacion', 'cuale son sus presupuesto', 'valor']):
             return self.respuestas['cotizacion']
         
         # Garantía
-        elif any(palabra in pregunta for palabra in ['garantía', 'garantia', 'calidad', 'confianza', 'seguro', 'devolución', 'devolucion', 'calidad']):
+        elif any(palabra in pregunta for palabra in ['tienen garantía', 'cuentan con garantia', 'como es su calidad', 'que confianza ofrecen', 'que seguro utilizan', 'realizan devolución', 'hacen devolucion', 'calidad']):
             return self.respuestas['garantia']
         
         # Contacto
-        elif any(palabra in pregunta for palabra in ['contacto', 'teléfono', 'telefono', 'whatsapp', 'email', 'correo', 'llamar', 'comunico', 'comunicar', 'comunicación', 'comunicacion']):
+        elif any(palabra in pregunta for palabra in ['cuale son sus contacto', 'cual es su teléfono', 'telefono', 'cual es su whatsapp', 'tienen correo', 'correo', 'a donde puedo llamarles', 'como me comunico con ustedes', 'como me puedo comunicar con ustedes', 'comunicación', 'comunicacion']):
             return self.respuestas['contacto']
         
         # Servicios
-        elif any(palabra in pregunta for palabra in ['servicio', 'servicios', 'instalación', 'instalacion', 'montaje', 'asesoría', 'asesoria', 'taller', 'mantenimiento']):
+        elif any(palabra in pregunta for palabra in ['que servicio ofrecen', 'que servicios tienen', 'ofrecen instalación', 'hacen instalacion', 'hacen montaje de piesas', 'puedo solicitar una asesoría', 'ofrecen asesoria', 'cual es su taller', 'ofrecen mantenimiento']):
             return self.respuestas['servicios']
         
         # Envíos
-        elif any(palabra in pregunta for palabra in ['envío', 'envio', 'delivery', 'entrega', 'shipping', 'domicilio', 'enviar', 'recoger']):
+        elif any(palabra in pregunta for palabra in ['hacen envíos', 'hacen envios', 'hacen delivery', 'realizan entrega', 'shipping', 'entregan a domicilio', 'lo pueden enviar a mi casa', 'donde lo puedo recoger']):
             return {
                 'titulo': 'Envíos y Logística',
-                'contenido': '''**🚚 SERVICIO DE DELIVERY:**
+                'contenido': '''🚚 SERVICIO DE DELIVERY:
 
-**📦 Entrega Express:**
-• Lima Metropolitana: 2-4 horas
-• Provincias: 24-48 horas
-• Urgente: 1 hora (costo adicional)
+                📍 📦 Entrega Express:
+                • Lima Metropolitana: 2-4 horas
+                • Provincias: 24-48 horas
+                • Urgente: 1 hora (costo adicional)
 
-**💰 Costos de Envío:**
-• Lima: S/ 15 - S/ 25
-• Provincias: S/ 25 - S/ 50
-• *Envío GRATIS en compras mayores a S/ 500*
+                💵 💰 Costos de Envío:
+                • Lima: S/ 15 - S/ 25
+                • Provincias: S/ 25 - S/ 50
+                • *Envío GRATIS en compras mayores a S/ 500*
 
-**🏍️ Opciones de Entrega:**
-• Motocourier express
-• Courier especializado
-• Recojo en tienda (gratis)''',
-                'icono': '🚚',
-                'color': '#F97316'
+                🚩 🏍️ Opciones de Entrega:
+                • Motocourier express
+                • Courier especializado
+                • Recojo en tienda (gratis)''',
+                            'icono': '🚚',
+                            'color': '#F97316'
             }
         
         # Despedida
@@ -855,26 +846,21 @@ Sábados: 9:00 am - 2:00 pm''',
             }
         
         else:
+            # Enviar pregunta no comprendida al sistema de soporte
+            threading.Thread(
+                target=self.enviar_pregunta_soporte, 
+                args=(pregunta,), 
+                daemon=True
+            ).start()
             return {
                 'titulo': 'No entendí tu pregunta',
-                'contenido': '''Puedo ayudarte con información sobre:
-
-• 🚗 Catálogo completo de autopartes
-• 🛑 Sistema de frenos
-• 🔧 Motor y transmisión
-• 🔄 Suspensión y dirección
-• ⚡ Sistema eléctrico
-• 🛢️ Lubricantes y fluidos
-• 🏷️ Marcas específicas
-• 💰 Cotizaciones y precios
-• 💳 Métodos de pago
-• 📍 Ubicación y sucursales
-• 🔧 Garantías y políticas
-
-¿Sobre qué te gustaría consultar?''',
+                'contenido': '''Lo siento no comprendo bien tu pregunta 🤔
+                Me comunicare con un encargado para poder ayudarte con tu duda 👩🏻‍💼
+                Tiempo de espera: 2 mins - 5 mins 🕑''',
                 'icono': '🤔',
                 'color': '#6B7280'
             }
+    
 
 chatbot = ChatBotAutopartes()
 
@@ -882,17 +868,10 @@ chatbot = ChatBotAutopartes()
 with app.app_context():
     init_db()
 
-# Ruta de login para administración - CON DISEÑO MEJORADO
-
-
-# [El resto del código permanece exactamente igual...]
-# Solo he modificado la parte de autenticación y login para agregar el diseño
-# El resto del código del chatbot se mantiene intacto
-
 @app.route('/')
 def home():
     # [Todo el código HTML del chatbot permanece igual...]
-     return r'''
+    return '''
     <!DOCTYPE html>
     <html lang="es">
     <head>
@@ -1063,8 +1042,6 @@ def home():
                 transform: translateY(-2px);
                 box-shadow: 0 6px 20px rgba(16, 163, 127, 0.4);
             }
-
-            ##Cambiar por logos##
             
             .sidebar-footer {
                 padding: 20px;
@@ -2088,6 +2065,15 @@ def home():
                     padding: 20px 0;
                 }
                 
+                /* --- INSERTA AQUÍ --- */
+                .user-message {
+                    margin-left: auto !important;
+                    text-align: right !important;
+                    display: flex !important;
+                    justify-content: flex-end !important;
+                }
+                /* ---------------------- */
+
                 .catalogo-table {
                     min-width: 600px;
                 }
@@ -2152,7 +2138,6 @@ def home():
                         <button class="header-btn" onclick="mostrarModalPago()">
                             💰 Realizar Pago
                         </button>
-                        
                     </div>
                 </div>
                 
@@ -2165,23 +2150,18 @@ def home():
                                 <div class="message-time" id="current-time"></div>
                             </div>
                             <div class="message-text">
-                                ¡Hola! Soy tu asistente virtual de **Autopartes - Verese Sac**. Ahora puedes consultar nuestro catálogo completo en un formato de tabla organizado con toda la información que necesitas.
+                                ¡Hola! Soy tu asistente virtual de "Autopartes - Verese Sac". Ahora puedes consultar nuestro catálogo completo en un formato de tabla organizado con toda la información que necesitas.
 
-**En nuestra tabla encontrarás:**
-• 🚗 **Modelos compatibles** con cada autoparte
-• 💰 **Precios** actualizados en soles
-• 🔧 **Tipo de pieza** y categoría
-• 🏷️ **Marca** del producto
-• 🔢 **Número de serie** único
-• 📊 **Stock disponible** con indicadores de color
+En nuestra tabla encontrarás:
+    ☑️ 🚗 Modelos compatibles con cada autoparte
+    ☑️ 💰 Precios actualizados en soles
+    ☑️ 🔧 Tipo de pieza y categoría
+    ☑️ 🏷️ Marca del producto
+    ☑️ 🔢 Número de serie único
+    ☑️ 📊 Stock disponible con indicadores de color
 
-**¿Qué te gustaría consultar?**
                             </div>
                             <div class="suggestions">
-                                <div class="suggestion" onclick="hacerPregunta('Ver catálogo completo')">📊 Catálogo completo</div>
-                                <div class="suggestion" onclick="hacerPregunta('Sistema de frenos')">🛑 Frenos en tabla</div>
-                                <div class="suggestion" onclick="hacerPregunta('Motor')">🔧 Motor en tabla</div>
-                                <div class="suggestion" onclick="hacerPregunta('Métodos de pago')">💳 Métodos de pago</div>
                             </div>
                         </div>
                     </div>
@@ -2203,12 +2183,6 @@ def home():
                                 <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </button>
-                    </div>
-                    <div class="suggestions">
-                        <div class="suggestion" onclick="hacerPregunta('Ver catálogo completo')">📊 Tabla completa</div>
-                        <div class="suggestion" onclick="hacerPregunta('Sistema de frenos')">🛑 Tabla frenos</div>
-                        <div class="suggestion" onclick="hacerPregunta('Motor')">🔧 Tabla motor</div>
-                        <div class="suggestion" onclick="hacerPregunta('Métodos de pago')">💳 Métodos de pago</div>
                     </div>
                 </div>
             </div>
@@ -2833,12 +2807,6 @@ def home():
                                 <div class="message-text">
                                     ¡Hola! Soy tu asistente virtual de **Autopartes - Verese Sac**. ¿En qué puedo ayudarte hoy?
                                 </div>
-                                <div class="suggestions">
-                                    <div class="suggestion" onclick="hacerPregunta('Ver catálogo completo')">📊 Tabla completa</div>
-                                    <div class="suggestion" onclick="hacerPregunta('Sistema de frenos')">🛑 Tabla frenos</div>
-                                    <div class="suggestion" onclick="hacerPregunta('Motor')">🔧 Tabla motor</div>
-                                    <div class="suggestion" onclick="hacerPregunta('Métodos de pago')">💳 Métodos de pago</div>
-                                </div>
                             </div>
                         </div>
                     `;
@@ -2909,6 +2877,218 @@ def home():
             // Scroll inicial al final
             scrollToBottom();
         </script>
+        
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+        <script>
+            // Conexión WebSocket
+            const socket = io();
+            
+            socket.on('connection_established', function(data) {
+                console.log('✅ Conectado al servidor de notificaciones');
+            });
+            
+            // Escuchar nuevas respuestas del soporte
+            socket.on('nueva_respuesta_soporte', function(data) {
+                mostrarNotificacionSoporte(data);
+            });
+            
+            function mostrarNotificacionSoporte(data) {
+                // Crear notificación
+                const notification = document.createElement('div');
+                notification.className = 'message';
+                notification.innerHTML = `
+                    <div class="avatar bot-avatar" style="background: linear-gradient(135deg, #10B981, #059669)">👤</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <div class="message-sender">Soporte - ${data.administrador}</div>
+                            <div class="message-time">${data.timestamp}</div>
+                        </div>
+                        <div class="message-text">
+                            <strong>Hemos respondido tu consulta:</strong><br>
+                            "<em>${data.pregunta_original}</em>"<br><br>
+                            <strong>Respuesta:</strong><br>
+                            ${data.respuesta}
+                        </div>
+                        <div class="action-buttons">
+                            <button class="action-button" onclick="hacerPregunta('Gracias por la respuesta')">
+                                👍 Agradecer
+                            </button>
+                            <button class="action-button secondary" onclick="hacerPregunta('Necesito más información')">
+                                ❓ Más información
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Agregar al chat
+                const chatContainer = document.getElementById('chat-container');
+                chatContainer.appendChild(notification);
+                
+                // Scroll to bottom
+                scrollToBottom();
+                
+                // Mostrar notificación toast
+                mostrarToast('Nueva respuesta del equipo de soporte!');
+            }
+            
+            function mostrarToast(mensaje) {
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #10B981, #059669);
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                `;
+                toast.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>🔔</span>
+                        <span>${mensaje}</span>
+                    </div>
+                `;
+                
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 5000);
+            }
+        </script>
+
+        <style>
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        </style>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+        <script>
+            // Conexión WebSocket
+            const socket = io();
+    
+            socket.on('connection_established', function(data) {
+                console.log('✅ Conectado al servidor de notificaciones');
+            });
+    
+            // Escuchar nuevas respuestas del soporte
+            socket.on('nueva_respuesta_soporte', function(data) {
+                console.log('📩 Nueva respuesta recibida:', data);
+                mostrarNotificacionSoporte(data);
+            });
+    
+            // Manejar errores de conexión
+            socket.on('connect_error', function(error) {
+                console.error('❌ Error de conexión WebSocket:', error);
+            });
+    
+            function mostrarNotificacionSoporte(data) {
+                console.log('🎨 Mostrando notificación:', data);
+        
+                // Crear notificación
+                const notification = document.createElement('div');
+                notification.className = 'message';
+                notification.innerHTML = `
+                    <div class="avatar bot-avatar" style="background: linear-gradient(135deg, #10B981, #059669)">👤</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <div class="message-sender">Soporte - ${data.administrador}</div>
+                            <div class="message-time">${data.timestamp}</div>
+                        </div>
+                        <div class="message-text">
+                            <strong>Hemos respondido tu consulta:</strong><br>
+                            "<em>${data.pregunta_original}</em>"<br><br>
+                            <strong>Respuesta:</strong><br>
+                            ${data.respuesta}
+                        </div>
+                        <div class="action-buttons">
+                            <button class="action-button" onclick="hacerPregunta('Gracias por la respuesta')">
+                                👍 Agradecer
+                            </button>
+                            <button class="action-button secondary" onclick="hacerPregunta('Necesito más información')">
+                                ❓ Más información
+                            </button>
+                        </div>
+                    </div>
+                `;
+        
+                // Agregar al chat
+                const chatContainer = document.getElementById('chat-container');
+                if (chatContainer) {
+                    chatContainer.appendChild(notification);
+                    console.log('✅ Notificación agregada al chat');
+            
+                    // Scroll to bottom
+                    scrollToBottom();
+            
+                    // Mostrar notificación toast
+                    mostrarToast('¡Nueva respuesta del equipo de soporte!');
+                } else {
+                    console.error('❌ No se encontró el contenedor del chat');
+                }
+            }
+    
+            function mostrarToast(mensaje) {
+                console.log('🔄 Mostrando toast:', mensaje);
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #10B981, #059669);
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                    font-family: 'Inter', sans-serif;
+                `;
+                toast.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>🔔</span>
+                        <span>${mensaje}</span>
+                    </div>
+                `;
+        
+                document.body.appendChild(toast);
+        
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        if (document.body.contains(toast)) {
+                            document.body.removeChild(toast);
+                        }
+                    }, 300);
+                }, 5000);
+            }
+        </script>
+
+        <style>
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+    
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        </style>
+
     </body>
     </html>
     '''
@@ -3002,7 +3182,66 @@ def api_registrar_pago():
             'success': False,
             'error': str(e)
         }), 400
-
+    
+# Endpoint para recibir respuestas del sistema de soporte
+@app.route('/api/recibir_respuesta_soporte', methods=['POST'])
+def recibir_respuesta_soporte():
+    """Recibe respuestas del sistema de soporte administrativo"""
+    print("🔧 DEBUG: Endpoint /api/recibir_respuesta_soporte llamado")
+    
+    try:
+        data = request.get_json()
+        print(f"🔧 DEBUG: Datos recibidos: {data}")
+        
+        if not data:
+            print("❌ ERROR: No se recibieron datos JSON")
+            return jsonify({'estado': 'error', 'mensaje': 'No se recibieron datos'}), 400
+        
+        pregunta_original = data.get('pregunta_original', '')
+        respuesta = data.get('respuesta', '')
+        pregunta_id = data.get('pregunta_id', '')
+        administrador = data.get('administrador', 'Soporte')
+        
+        print(f"📩 DEBUG: Respuesta recibida - Admin: {administrador}")
+        print(f"📩 DEBUG: Pregunta: {pregunta_original}")
+        print(f"📩 DEBUG: Respuesta: {respuesta}")
+        
+        # Validar datos esenciales
+        if not pregunta_original or not respuesta:
+            print("❌ ERROR: Faltan datos esenciales (pregunta_original o respuesta)")
+            return jsonify({'estado': 'error', 'mensaje': 'Datos incompletos'}), 400
+        
+        # Enviar a todos los clientes conectados via WebSocket
+        socketio.emit('nueva_respuesta_soporte', {
+            'pregunta_original': pregunta_original,
+            'respuesta': respuesta,
+            'pregunta_id': pregunta_id,
+            'administrador': administrador,
+            'timestamp': datetime.now().strftime('%H:%M')
+        })
+        
+        print(f"✅ DEBUG: Evento WebSocket emitido correctamente")
+        
+        return jsonify({
+            'estado': 'success', 
+            'mensaje': 'Respuesta recibida y enviada a los clientes'
+        })
+            
+    except Exception as e:
+        print(f"❌ ERROR en recibir_respuesta_soporte: {str(e)}")
+        import traceback
+        print(f"🔧 DEBUG: Traceback: {traceback.format_exc()}")
+        return jsonify({'estado': 'error', 'mensaje': 'Error interno del servidor'}), 500
+    
+@app.route('/api/test', methods=['GET', 'POST'])
+def test_endpoint():
+    """Endpoint de prueba"""
+    print("✅ Endpoint de prueba /api/test alcanzado")
+    return jsonify({
+        'estado': 'success',
+        'mensaje': 'Chatbot funcionando correctamente',
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/abrir_mapa')
 def abrir_mapa():
@@ -3015,22 +3254,62 @@ def abrir_navegador():
     time.sleep(2)
     webbrowser.open('http://127.0.0.1:5000')
 
+# ... resto del código del chatbot ...
+
+# Endpoint para recibir preguntas no comprendidas del chatbot
+@app.route('/api/pregunta_no_comprendida', methods=['POST'])
+def recibir_pregunta_no_comprendida():
+    """Endpoint para recibir preguntas no comprendidas del chatbot"""
+    try:
+        data = request.get_json()
+        pregunta = data.get('pregunta', '')
+        categoria = data.get('categoria', 'Consulta General')
+        
+        if pregunta:
+            db = get_db()
+            db.execute('''
+                INSERT INTO preguntas_soporte (pregunta, estado, categoria)
+                VALUES (?, 'pendiente', ?)
+            ''', (pregunta, categoria))
+            db.commit()
+            
+            return jsonify({
+                'estado': 'success', 
+                'mensaje': 'Pregunta guardada para revisión del equipo de soporte'
+            })
+        else:
+            return jsonify({'estado': 'error', 'mensaje': 'Pregunta vacía'}), 400
+            
+    except Exception as e:
+        return jsonify({'estado': 'error', 'mensaje': 'Error interno del servidor'}), 500
+
+# Configuración CORS para permitir peticiones del chatbot
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'http://127.0.0.1:5000')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+# WebSocket events
+@socketio.on('connect')
+def handle_connect():
+    print('✅ Cliente conectado via WebSocket')
+    emit('connection_established', {'data': 'Conectado al servidor'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('❌ Cliente desconectado')
+
 if __name__ == '__main__':
     print("🚗 Iniciando Autopartes - Verese Sac AI...")
-    print("🔐 Sistema de autenticación implementado")
     print("🛒 Carrito de compras con selección de productos")
     print("💰 Cálculo automático de IGV y totales")
     print("🗃️  Base de datos SQLite integrada y funcionando")
-    print("📊 Dashboard administrativo disponible en /admin/login")
-    print("🔧 Usuarios admin: Pedro_48, Abad_48, Sergio_48, Olivera_48")
     print("💬 La aplicación estará disponible en: http://127.0.0.1:5000")
     print("⏹️  Presiona Ctrl+C para detener el servidor")
     
     # Abre el navegador automáticamente
     threading.Thread(target=abrir_navegador, daemon=True).start()
-
-    app.run(debug=True, use_reloader=False)
-
-
-
-
+    socketio.run(app, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
