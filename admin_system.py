@@ -114,7 +114,6 @@ def admin_logout():
     return redirect(url_for('admin_bp.admin_login'))
 
 # Dashboard para Admin DB
-@app.route('/dashboard') # ¡OJO! En tu código original esto estaba suelto.
 @admin_bp.route('/dashboard') # Lo cambiamos a admin_bp
 @login_required
 def admin_dashboard():
@@ -312,3 +311,4 @@ VENTAS_HTML = f"""<!DOCTYPE html><html><head><style>{CSS_COMMON}</style></head>
 <body><div class="container"><div class="header"><h1>🛒 Ventas</h1><a href="{{{{ url_for('admin_bp.admin_dashboard') }}}}" class="btn">Volver</a></div>
 <table><thead><tr><th>ID</th><th>Cliente</th><th>Monto</th><th>Estado</th><th>Pago</th><th>Fecha</th></tr></thead>
 <tbody>{{{{ rows | safe }}}}</tbody></table></div></body></html>"""
+
