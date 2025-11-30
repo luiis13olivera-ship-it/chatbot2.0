@@ -10,18 +10,16 @@ import os
 import hashlib
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
-
+from admin_system import admin_bp
 
 app = Flask(__name__)
 app.secret_key = 'autopartes_verese_secret_key_2024'
-# Configuración CORS
 CORS(app)
 
 # Configuración de SocketIO para comunicación en tiempo real
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 app.register_blueprint(admin_bp, url_prefix='/admin')
-
 # Configuración de la base de datos
 DATABASE = 'autopartes.db'
 
@@ -3315,4 +3313,5 @@ if __name__ == '__main__':
     # Abre el navegador automáticamente
     threading.Thread(target=abrir_navegador, daemon=True).start()
     socketio.run(app, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
+
 
